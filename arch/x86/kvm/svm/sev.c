@@ -292,6 +292,7 @@ static void sev_unbind_asid(struct kvm *kvm, unsigned int handle)
 
 static int verify_snp_init_flags(struct kvm *kvm, struct kvm_sev_cmd *argp)
 {
+	struct kvm_sev_info *sev = &to_kvm_svm(kvm)->sev_info;
 	struct kvm_snp_init params;
 	int ret = 0;
 
@@ -301,6 +302,10 @@ static int verify_snp_init_flags(struct kvm *kvm, struct kvm_sev_cmd *argp)
 	if (params.flags & ~SEV_SNP_SUPPORTED_FLAGS)
 		ret = -EOPNOTSUPP;
 
+	/* Save the supplied flags value */
+	sev->snp_init_flags = params.flags;
+
+	/* Return the supported flags value */
 	params.flags = SEV_SNP_SUPPORTED_FLAGS;
 
 	if (copy_to_user((void __user *)(uintptr_t)argp->data, &params, sizeof(params)))
@@ -356,6 +361,7 @@ e_free:
 	sev->asid = 0;
 e_no_asid:
 	sev->es_active = false;
+	sev->snp_init_flags = 0;
 	return ret;
 }
 
@@ -1873,6 +1879,10 @@ static int snp_launch_update_vmsa(struct kvm *kvm, struct kvm_sev_cmd *argp)
 		}
 
 		svm->vcpu.arch.guest_state_protected = true;
+
+		/* If SVSM support is requested, only update the first vCPU */
+		if (sev->snp_init_flags & KVM_SEV_SNP_SVSM)
+			break;
 	}
 
 	return 0;
@@ -1895,7 +1905,7 @@ static int snp_launch_finish(struct kvm *kvm, struct kvm_sev_cmd *argp)
 	if (copy_from_user(&params, (void __user *)(uintptr_t)argp->data, sizeof(params)))
 		return -EFAULT;
 
-	/* Measure all vCPUs using LAUNCH_UPDATE before we finalize the launch flow. */
+	/* Measure vCPUs using LAUNCH_UPDATE before we finalize the launch flow. */
 	ret = snp_launch_update_vmsa(kvm, argp);
 	if (ret)
 		return ret;

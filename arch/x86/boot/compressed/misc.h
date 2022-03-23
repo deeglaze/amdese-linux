@@ -43,6 +43,7 @@
 
 #define BOOT_BOOT_H
 #include "../ctype.h"
+#include "sev.h"
 
 #ifdef CONFIG_X86_64
 #define memptr long
@@ -130,25 +131,6 @@ static inline void console_init(void)
 { }
 #endif
 
-#ifdef CONFIG_AMD_MEM_ENCRYPT
-void sev_enable(struct boot_params *bp);
-void sev_es_shutdown_ghcb(void);
-extern bool sev_es_check_ghcb_fault(unsigned long address);
-void snp_set_page_private(unsigned long paddr);
-void snp_set_page_shared(unsigned long paddr);
-void sev_prep_identity_maps(unsigned long top_level_pgt);
-#else
-static inline void sev_enable(struct boot_params *bp) { }
-static inline void sev_es_shutdown_ghcb(void) { }
-static inline bool sev_es_check_ghcb_fault(unsigned long address)
-{
-	return false;
-}
-static inline void snp_set_page_private(unsigned long paddr) { }
-static inline void snp_set_page_shared(unsigned long paddr) { }
-static inline void sev_prep_identity_maps(unsigned long top_level_pgt) { }
-#endif
-
 /* acpi.c */
 #ifdef CONFIG_ACPI
 acpi_physical_address get_rsdp_addr(void);
@@ -186,8 +168,6 @@ static inline void cleanup_exception_handling(void) { }
 void boot_page_fault(void);
 void boot_stage1_vc(void);
 void boot_stage2_vc(void);
-
-unsigned long sev_verify_cbit(unsigned long cr3);
 
 enum efi_type {
 	EFI_TYPE_64,

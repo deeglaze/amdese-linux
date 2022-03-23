@@ -9,6 +9,7 @@
 #include <asm/io.h>
 #include <asm/setup.h>
 #include <asm/unaccepted_memory.h>
+#include <asm/sev.h>
 
 /* Protects unaccepted memory bitmap and nr_unaccepted */
 static DEFINE_SPINLOCK(unaccepted_memory_lock);
@@ -32,7 +33,10 @@ void accept_memory(phys_addr_t start, phys_addr_t end)
 		unsigned long len = range_end - range_start;
 
 		/* Platform-specific memory-acceptance call goes here */
-		panic("Cannot accept memory");
+		if (cc_platform_has(CC_ATTR_GUEST_SEV_SNP))
+			snp_accept_memory(range_start * PMD_SIZE, range_end * PMD_SIZE);
+		else
+			panic("Cannot accept memory");
 		bitmap_clear(unaccepted_memory, range_start, len);
 		count_vm_events(ACCEPT_MEMORY, len * PMD_SIZE / PAGE_SIZE);
 

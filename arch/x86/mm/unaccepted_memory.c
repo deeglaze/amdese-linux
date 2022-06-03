@@ -31,6 +31,7 @@ void accept_memory(phys_addr_t start, phys_addr_t end)
 		/* Platform-specific memory-acceptance call goes here */
 		panic("Cannot accept memory");
 		bitmap_clear(unaccepted_memory, range_start, len);
+		count_vm_events(ACCEPT_MEMORY, len * PMD_SIZE / PAGE_SIZE);
 	}
 	spin_unlock_irqrestore(&unaccepted_memory_lock, flags);
 }

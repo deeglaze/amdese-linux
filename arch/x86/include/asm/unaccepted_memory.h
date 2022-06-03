@@ -3,7 +3,10 @@
 #ifndef _ASM_X86_UNACCEPTED_MEMORY_H
 #define _ASM_X86_UNACCEPTED_MEMORY_H
 
+#include <linux/types.h>
+
 struct boot_params;
+struct seq_file;
 
 void process_unaccepted_memory(struct boot_params *params, u64 start, u64 num);
 
@@ -12,5 +15,11 @@ void process_unaccepted_memory(struct boot_params *params, u64 start, u64 num);
 void accept_memory(phys_addr_t start, phys_addr_t end);
 bool memory_is_unaccepted(phys_addr_t start, phys_addr_t end);
  
+void unaccepted_meminfo(struct seq_file *m);
+
+#else
+
+static inline void unaccepted_meminfo(struct seq_file *m) {}
+
 #endif
 #endif

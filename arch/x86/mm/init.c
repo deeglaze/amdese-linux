@@ -1066,3 +1066,11 @@ unsigned long max_swapfile_size(void)
 	return pages;
 }
 #endif
+
+#ifdef CONFIG_PROC_FS
+void arch_report_meminfo(struct seq_file *m)
+{
+	direct_map_meminfo(m);
+	unaccepted_meminfo(m);
+}
+#endif

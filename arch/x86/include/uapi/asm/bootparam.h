@@ -270,6 +270,21 @@ enum x86_hardware_subarch {
 	X86_NR_SUBARCHS,
 };
 
+/**
+ * Bitmap boot_features is a 32-bit number in the kernel_info fixed area that
+ * informs a bootloader of supported features that must be known before boot.
+ */
+#define KERNEL_BOOT_FEATURE_UNACCEPTED_MEMORY 0x00000001
+
+#ifdef CONFIG_UNACCEPTED_MEMORY
+# define KERNEL_INFO_UNACCEPTED_MEMORY KERNEL_BOOT_FEATURE_UNACCEPTED_MEMORY
+#else
+# define KERNEL_INFO_UNACCEPTED_MEMORY 0
+#endif
+
+#define KERNEL_INFO_BOOT_FEATURES \
+  KERNEL_INFO_UNACCEPTED_MEMORY
+
 #endif /* __ASSEMBLY__ */
 
 #endif /* _ASM_X86_BOOTPARAM_H */

@@ -17,6 +17,9 @@ kernel_info:
 	/* Maximal allowed type for setup_data and setup_indirect structs. */
 	.long	SETUP_TYPE_MAX
 
+        /* Boot features that the bootloader must know about */
+        .long   KERNEL_INFO_BOOT_FEATURES
+
 kernel_info_var_len_data:
 	/* Empty for time being... */
 kernel_info_end:

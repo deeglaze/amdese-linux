@@ -165,18 +165,6 @@ struct efi_boot_memmap {
 	unsigned long		*buff_size;
 };
 
-/*
- * An efi_memory_map_features_t is used to inform the UEFI which post-v2.8
- * UEFI memory features the OS supports. It's used in get_memory_map_ex,
- * which was added to UEFI v2.10.
- */
-typedef struct {
-  u32 size;
-  u64 feature_bitmap0;
-} efi_memory_map_features_t;
-
-#define EFI_MEMORY_MAP_FEATURE0_UNACCEPTED_MEMORY 1
-
 typedef struct efi_generic_dev_path efi_device_path_protocol_t;
 
 typedef void *efi_event_t;
@@ -291,9 +279,6 @@ union efi_boot_services {
 		void *copy_mem;
 		void *set_mem;
 		void *create_event_ex;
-		efi_status_t (__efiapi *get_memory_map_ex)(
-                    unsigned long *, efi_memory_map_features_t *, void *,
-                    unsigned long *, unsigned long *, u32 *);
 	};
 	struct {
 		efi_table_hdr_t hdr;
@@ -341,7 +326,6 @@ union efi_boot_services {
 		u32 copy_mem;
 		u32 set_mem;
 		u32 create_event_ex;
-		u32 get_memory_map_ex;
 	} mixed_mode;
 };
 
@@ -872,7 +856,7 @@ efi_status_t efi_load_initrd(efi_loaded_image_t *image,
 			     unsigned long soft_limit,
 			     unsigned long hard_limit);
 /*
- * This function handles the architecture specific differences between arm and
+ * This function handles the architcture specific differences between arm and
  * arm64 regarding where the kernel image must be loaded and any memory that
  * must be reserved. On failure it is required to free all
  * all allocations it has made.

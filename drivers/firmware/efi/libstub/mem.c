@@ -29,15 +29,10 @@ efi_status_t efi_get_memory_map(struct efi_boot_memmap *map)
 	efi_status_t status;
 	unsigned long key;
 	u32 desc_version;
-        efi_memory_map_features_t features;
 
 	*map->desc_size =	sizeof(*m);
 	*map->map_size =	*map->desc_size * 32;
 	*map->buff_size =	*map->map_size;
-
-        memset(&features, 0, sizeof(features));
-        features.size = sizeof(features);
-        features.feature_bitmap0 = EFI_MEMORY_MAP_FEATURE0_UNACCEPTED_MEMORY;
 again:
 	status = efi_bs_call(allocate_pool, EFI_LOADER_DATA,
 			     *map->map_size, (void **)&m);
@@ -46,12 +41,8 @@ again:
 
 	*map->desc_size = 0;
 	key = 0;
-        if (efi_system_table->boottime->hdr.revision >= EFI_2_10_SYSTEM_TABLE_REVISION)
-          status = efi_bs_call(get_memory_map_ex, map->map_size, &features, m,
-                               &key, map->desc_size, &desc_version);
-        else
-          status = efi_bs_call(get_memory_map, map->map_size, m,
-                               &key, map->desc_size, &desc_version);
+	status = efi_bs_call(get_memory_map, map->map_size, m,
+			     &key, map->desc_size, &desc_version);
 	if (status == EFI_BUFFER_TOO_SMALL ||
 	    !mmap_has_headroom(*map->buff_size, *map->map_size,
 			       *map->desc_size)) {

@@ -351,6 +351,51 @@ static void __init efi_debugfs_init(void)
 static inline void efi_debugfs_init(void) {}
 #endif
 
+static void __init efi_set_os_indications(void)
+{
+#ifdef CONFIG_UNACCEPTED_MEMORY
+  efi_status_t status;
+  unsigned long size;
+  u64 os_indications_supported = 0;
+  u32 os_indications_attributes = 0;
+  u64 os_indications = 0;
+
+  size = sizeof(u64);
+  status = efi.get_variable(
+      L"OsIndicationsSupported", &EFI_GLOBAL_VARIABLE_GUID,
+      NULL, &size, &os_indications_supported);
+  if (status != EFI_SUCCESS)
+    return;
+
+  if (!(os_indications_supported & EFI_OS_INDICATIONS_UNACCEPTED_MEMORY_SUPPORTED))
+    return;
+
+  status = efi.get_variable(
+      L"OsIndications", &EFI_GLOBAL_VARIABLE_GUID, &os_indications_attributes,
+      &size, &os_indications);
+  if (status != EFI_SUCCESS && status != EFI_NOT_FOUND) {
+    return;
+  }
+
+  if (status == EFI_NOT_FOUND) {
+    /* The variable must be created with its specified attributes. */
+    os_indications_attributes =  EFI_VARIABLE_NON_VOLATILE |
+                                 EFI_VARIABLE_BOOTSERVICE_ACCESS |
+                                 EFI_VARIABLE_RUNTIME_ACCESS;
+  }
+
+  /* No need to set the variable since the bit is set. */
+  if (os_indications & EFI_OS_INDICATIONS_UNACCEPTED_MEMORY_SUPPORTED) {
+    return;
+  }
+
+  os_indications |= EFI_OS_INDICATIONS_UNACCEPTED_MEMORY_SUPPORTED;
+  status = efi.set_variable(
+      L"OsIndications", &EFI_GLOBAL_VARIABLE_GUID, os_indications_attributes,
+      sizeof(os_indications), &os_indications);
+#endif
+}
+
 /*
  * We register the efi subsystem with the firmware subsystem and the
  * efivars subsystem with the efi subsystem, if the system was booted with
@@ -421,6 +466,8 @@ static int __init efisubsys_init(void)
 
 	if (efi_enabled(EFI_DBG) && efi_enabled(EFI_PRESERVE_BS_REGIONS))
 		efi_debugfs_init();
+
+        efi_set_os_indications();
 
 	return 0;
 

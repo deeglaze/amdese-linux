@@ -937,6 +937,11 @@ extern int efi_status_to_err(efi_status_t status);
 #define   EFI_DEV_END_INSTANCE			0x01
 #define   EFI_DEV_END_ENTIRE			0xFF
 
+/*
+ * EFI OsIndicationsSupported and OsIndications bitmasks.
+ */
+#define EFI_OS_INDICATIONS_UNACCEPTED_MEMORY_SUPPORTED 0x0000000000000100
+
 struct efi_generic_dev_path {
 	u8				type;
 	u8				sub_type;

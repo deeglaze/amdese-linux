@@ -38,6 +38,21 @@
 #define XLF_5LEVEL			(1<<5)
 #define XLF_5LEVEL_ENABLED		(1<<6)
 
+/**
+ * Bitmap boot_features is a 32-bit number in the kernel_info fixed area that
+ * informs a bootloader of supported features that must be known before boot.
+ */
+#define KERNEL_BOOT_FEATURE_UNACCEPTED_MEMORY 0x00000001
+
+#ifdef CONFIG_UNACCEPTED_MEMORY
+# define KERNEL_INFO_UNACCEPTED_MEMORY KERNEL_BOOT_FEATURE_UNACCEPTED_MEMORY
+#else
+# define KERNEL_INFO_UNACCEPTED_MEMORY 0
+#endif
+
+#define KERNEL_INFO_BOOT_FEATURES \
+  KERNEL_INFO_UNACCEPTED_MEMORY
+
 #ifndef __ASSEMBLY__
 
 #include <linux/types.h>
@@ -269,21 +284,6 @@ enum x86_hardware_subarch {
 	X86_SUBARCH_CE4100,
 	X86_NR_SUBARCHS,
 };
-
-/**
- * Bitmap boot_features is a 32-bit number in the kernel_info fixed area that
- * informs a bootloader of supported features that must be known before boot.
- */
-#define KERNEL_BOOT_FEATURE_UNACCEPTED_MEMORY 0x00000001
-
-#ifdef CONFIG_UNACCEPTED_MEMORY
-# define KERNEL_INFO_UNACCEPTED_MEMORY KERNEL_BOOT_FEATURE_UNACCEPTED_MEMORY
-#else
-# define KERNEL_INFO_UNACCEPTED_MEMORY 0
-#endif
-
-#define KERNEL_INFO_BOOT_FEATURES \
-  KERNEL_INFO_UNACCEPTED_MEMORY
 
 #endif /* __ASSEMBLY__ */
 

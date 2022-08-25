@@ -117,7 +117,18 @@ static DEFINE_PER_CPU(struct sev_es_save_area *, sev_vmsa);
 
 struct sev_config {
 	__u64 debug		: 1,
-	      __reserved	: 63;
+
+	      /*
+	       * A flag used by set_pages_state() that indicates when the per-CPU GHCB has
+	       * been created and registered and thus can be used instead of using the MSR
+	       * protocol. The set_pages_state() function eventually invokes vmgexit_psc(),
+	       * which only works with a per-CPU GHCB.
+	       *
+	       * For APs, the per-CPU GHCB is created before they are started and registered
+	       * upon startup, so this flag can be used globally for the BSP and APs.
+	       */
+	      ghcbs_initialized : 1,
+	      __reserved	: 62;
 };
 
 static struct sev_config sev_cfg __read_mostly;
@@ -696,6 +707,8 @@ static int vmgexit_psc(struct snp_psc_desc *desc)
 	unsigned long flags;
 	struct ghcb *ghcb;
 
+	WARN_ON_ONCE(!sev_cfg.ghcbs_initialized);
+
 	/*
 	 * __sev_get_ghcb() needs to run with IRQs disabled because it is using
 	 * a per-CPU GHCB.
@@ -813,11 +826,16 @@ static void __set_pages_state(struct snp_psc_desc *data, unsigned long vaddr,
 static void set_pages_state(unsigned long vaddr, unsigned int npages, int op)
 {
 	unsigned long vaddr_end, next_vaddr;
-	struct snp_psc_desc *desc;
+	struct snp_psc_desc desc;
 
-	desc = kmalloc(sizeof(*desc), GFP_KERNEL_ACCOUNT);
-	if (!desc)
-		panic("SNP: failed to allocate memory for PSC descriptor\n");
+	/*
+	 * Use the MSR protocol when the per-CPU GHCBs are not yet registered,
+	 * since vmgexit_psc() uses the per-CPU GHCB.
+	 */
+	if (!sev_cfg.ghcbs_initialized)
+		return early_set_pages_state(__pa(vaddr), npages, op);
+
+	memset(&desc, 0, sizeof(desc));
 
 	vaddr = vaddr & PAGE_MASK;
 	vaddr_end = vaddr + (npages << PAGE_SHIFT);
@@ -827,12 +845,10 @@ static void set_pages_state(unsigned long vaddr, unsigned int npages, int op)
 		next_vaddr = min_t(unsigned long, vaddr_end,
 				   (VMGEXIT_PSC_MAX_ENTRY * PAGE_SIZE) + vaddr);
 
-		__set_pages_state(desc, vaddr, next_vaddr, op);
+		__set_pages_state(&desc, vaddr, next_vaddr, op);
 
 		vaddr = next_vaddr;
 	}
-
-	kfree(desc);
 }
 
 void snp_set_memory_shared(unsigned long vaddr, unsigned int npages)
@@ -1201,6 +1217,8 @@ void setup_ghcb(void)
 	if (initial_vc_handler == (unsigned long)kernel_exc_vmm_communication) {
 		if (cc_platform_has(CC_ATTR_GUEST_SEV_SNP))
 			snp_register_per_cpu_ghcb();
+
+		sev_cfg.ghcbs_initialized = true;
 
 		return;
 	}

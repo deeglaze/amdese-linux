@@ -18,5 +18,21 @@ kernel_info:
 	.long	SETUP_TYPE_MAX
 
 kernel_info_var_len_data:
-	/* Empty for time being... */
+#ifdef CONFIG_UNACCEPTED_MEMORY
+accepted_memory_struct:
+	/*
+	 * Presence of this struct means that this kernel supports the
+	 * unaccepted memory type.
+	 */
+	.ascii "UMem"
+	.long   accepted_memory_struct_end - accepted_memory_struct
+	/*
+	 * Any bootloader must know how much memory must be accepted before
+	 * booting the kernel, since the kernel needs enough space to get
+	 * to the point of understanding the memory map for unaccepted
+	 * memory. This is to be filled in by Intel.
+	 */
+accepted_memory_struct_end:
+#endif
+  /* Empty for time being... */
 kernel_info_end:

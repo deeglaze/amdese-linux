@@ -26,6 +26,16 @@ const efi_system_table_t *efi_system_table;
 extern u32 image_offset;
 static efi_loaded_image_t *image = NULL;
 
+union enable_unaccepted_memory_protocol {
+	struct {
+		efi_status_t (__efiapi *enable)(union enable_unaccepted_memory_protocol *);
+	};
+	struct {
+		u32 enable;
+	} mixed_mode;
+};
+typedef union enable_unaccepted_memory_protocol enable_unaccepted_memory_protocol_t;
+
 static efi_status_t
 preserve_pci_rom_image(efi_pci_io_protocol_t *pci, struct pci_setup_rom **__rom)
 {
@@ -210,6 +220,28 @@ static void retrieve_apple_device_properties(struct boot_params *boot_params)
 			data = (struct setup_data *)(unsigned long)data->next;
 		data->next = (unsigned long)new;
 	}
+}
+
+static void setup_unaccepted_memory(void)
+{
+#ifdef CONFIG_UNACCEPTED_MEMORY
+	efi_guid_t unaccepted_mem_proto = ENABLE_UNACCEPTED_MEMORY_PROTOCOL_GUID;
+	enable_unaccepted_memory_protocol_t *proto;
+	efi_status_t status;
+
+	/*
+	 * Enable unaccepted memory before calling exit boot services in order
+	 * for the UEFI to not accept all memory on EBS.
+	 */
+	status = efi_bs_call(locate_protocol, &unaccepted_mem_proto, NULL, (void**)&proto);
+	if (status != EFI_SUCCESS)
+		return;
+
+	status = efi_call_proto(proto, enable);
+	if (status != EFI_SUCCESS)
+		efi_err("Enable unaccepted memory protocol failed\n");
+
+#endif
 }
 
 static const efi_char16_t apple[] = L"Apple";
@@ -864,6 +896,8 @@ unsigned long efi_main(efi_handle_t handle,
 	setup_efi_pci(boot_params);
 
 	setup_quirks(boot_params);
+
+	setup_unaccepted_memory();
 
 	status = exit_boot(boot_params, handle);
 	if (status != EFI_SUCCESS) {

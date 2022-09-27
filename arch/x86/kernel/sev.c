@@ -610,7 +610,7 @@ static void early_set_pages_state(unsigned long vaddr, unsigned long paddr,
 	vaddr = vaddr & PAGE_MASK;
 
 	paddr = paddr & PAGE_MASK;
-	paddr_end = paddr + (npages << PAGE_SHIFT);
+	paddr_end = paddr + ((unsigned long)npages << PAGE_SHIFT);
 
 	while (paddr < paddr_end) {
 		if (op == SNP_PAGE_STATE_SHARED) {
@@ -777,7 +777,7 @@ static void set_pages_state(unsigned long vaddr, unsigned int npages, int op)
 		return early_set_pages_state(vaddr, __pa(vaddr), npages, op);
 
 	vaddr = vaddr & PAGE_MASK;
-	vaddr_end = vaddr + (npages << PAGE_SHIFT);
+	vaddr_end = vaddr + ((unsigned long)npages << PAGE_SHIFT);
 
 	while (vaddr < vaddr_end)
 		vaddr = __set_pages_state(&desc, vaddr, vaddr_end, op);
@@ -797,6 +797,20 @@ void snp_set_memory_private(unsigned long vaddr, unsigned int npages)
 		return;
 
 	set_pages_state(vaddr, npages, SNP_PAGE_STATE_PRIVATE);
+}
+
+void snp_accept_memory(phys_addr_t start, phys_addr_t end)
+{
+       unsigned long vaddr;
+       unsigned int npages;
+
+       if (!cc_platform_has(CC_ATTR_GUEST_SEV_SNP))
+               return;
+
+       vaddr = (unsigned long)__va(start);
+       npages = (end - start) >> PAGE_SHIFT;
+
+       set_pages_state(vaddr, npages, SNP_PAGE_STATE_PRIVATE);
 }
 
 static int snp_set_vmsa(void *va, bool vmsa)

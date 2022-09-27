@@ -5,6 +5,7 @@
 #include "error.h"
 #include "find.h"
 #include "math.h"
+#include "sev.h"
 
 #define PMD_SHIFT	21
 #define PMD_SIZE	(_AC(1, UL) << PMD_SHIFT)
@@ -15,7 +16,10 @@ extern struct boot_params *boot_params;
 static inline void __accept_memory(phys_addr_t start, phys_addr_t end)
 {
 	/* Platform-specific memory-acceptance call goes here */
-	error("Cannot accept memory");
+	if (sev_snp_enabled())
+		snp_accept_memory(start, end);
+	else
+		error("Cannot accept memory");
 }
 
 /*

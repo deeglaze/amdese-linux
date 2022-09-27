@@ -816,20 +816,6 @@ void snp_accept_memory(phys_addr_t start, phys_addr_t end)
 >>>>>>> e11b323d262e (x86/sev: Use large PSC requests if applicable)
 }
 
-void snp_accept_memory(phys_addr_t start, phys_addr_t end)
-{
-       unsigned long vaddr;
-       unsigned int npages;
-
-       if (!cc_platform_has(CC_ATTR_GUEST_SEV_SNP))
-               return;
-
-       vaddr = (unsigned long)__va(start);
-       npages = (end - start) >> PAGE_SHIFT;
-
-       set_pages_state(vaddr, npages, SNP_PAGE_STATE_PRIVATE);
-}
-
 static int snp_set_vmsa(void *va, bool vmsa)
 {
 	u64 attrs;

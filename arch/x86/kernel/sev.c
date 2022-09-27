@@ -797,6 +797,7 @@ void snp_set_memory_private(unsigned long vaddr, unsigned int npages)
 		return;
 
 	set_pages_state(vaddr, npages, SNP_PAGE_STATE_PRIVATE);
+<<<<<<< HEAD
 }
 
 void snp_accept_memory(phys_addr_t start, phys_addr_t end)
@@ -811,6 +812,8 @@ void snp_accept_memory(phys_addr_t start, phys_addr_t end)
        npages = (end - start) >> PAGE_SHIFT;
 
        set_pages_state(vaddr, npages, SNP_PAGE_STATE_PRIVATE);
+=======
+>>>>>>> e11b323d262e (x86/sev: Use large PSC requests if applicable)
 }
 
 static int snp_set_vmsa(void *va, bool vmsa)

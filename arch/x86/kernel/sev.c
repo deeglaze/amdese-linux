@@ -696,7 +696,7 @@ void __init snp_prep_memory(unsigned long paddr, unsigned int sz, enum psc_op op
 }
 
 static unsigned long __set_pages_state(struct snp_psc_desc *data, unsigned long vaddr,
-			      unsigned long vaddr_end, int op)
+				unsigned long vaddr_end, int op)
 {
 	struct ghcb_state state;
 	bool use_large_entry;
@@ -814,6 +814,20 @@ void snp_accept_memory(phys_addr_t start, phys_addr_t end)
        set_pages_state(vaddr, npages, SNP_PAGE_STATE_PRIVATE);
 =======
 >>>>>>> e11b323d262e (x86/sev: Use large PSC requests if applicable)
+}
+
+void snp_accept_memory(phys_addr_t start, phys_addr_t end)
+{
+       unsigned long vaddr;
+       unsigned int npages;
+
+       if (!cc_platform_has(CC_ATTR_GUEST_SEV_SNP))
+               return;
+
+       vaddr = (unsigned long)__va(start);
+       npages = (end - start) >> PAGE_SHIFT;
+
+       set_pages_state(vaddr, npages, SNP_PAGE_STATE_PRIVATE);
 }
 
 static int snp_set_vmsa(void *va, bool vmsa)

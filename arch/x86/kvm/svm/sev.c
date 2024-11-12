@@ -528,26 +528,20 @@ static int sev_bind_asid(struct kvm *kvm, unsigned int handle, int *error)
 	return ret;
 }
 
-static int __sev_issue_cmd(int fd, int id, void *data, int *error)
+static bool sev_check_external_user(int fd)
 {
 	struct fd f;
-	int ret;
+	boot ret = true;
 
 	f = fdget(fd);
 	if (!fd_file(f))
-		return -EBADF;
+		return false;
 
-	ret = sev_issue_cmd_external_user(fd_file(f), id, data, error);
+	if (!file_is_sev(fd_file(f)))
+		ret = false;
 
 	fdput(f);
 	return ret;
-}
-
-static int sev_issue_cmd(struct kvm *kvm, int id, void *data, int *error)
-{
-	struct kvm_sev_info *sev = &to_kvm_svm(kvm)->sev_info;
-
-	return __sev_issue_cmd(sev->fd, id, data, error);
 }
 
 static int sev_launch_start(struct kvm *kvm, struct kvm_sev_cmd *argp)
@@ -593,7 +587,7 @@ static int sev_launch_start(struct kvm *kvm, struct kvm_sev_cmd *argp)
 	start.policy = params.policy;
 
 	/* create memory encryption context */
-	ret = __sev_issue_cmd(argp->sev_fd, SEV_CMD_LAUNCH_START, &start, error);
+	ret = sev_do_cmd(SEV_CMD_LAUNCH_START, &start, error);
 	if (ret)
 		goto e_free_session;
 
@@ -782,7 +776,7 @@ static int sev_launch_update_data(struct kvm *kvm, struct kvm_sev_cmd *argp)
 
 		data.len = len;
 		data.address = __sme_page_pa(inpages[i]) + offset;
-		ret = sev_issue_cmd(kvm, SEV_CMD_LAUNCH_UPDATE_DATA, &data, &argp->error);
+		ret = sev_do_cmd(SEV_CMD_LAUNCH_UPDATE_DATA, &data, &argp->error);
 		if (ret)
 			goto e_unpin;
 
@@ -924,7 +918,7 @@ static int __sev_launch_update_vmsa(struct kvm *kvm, struct kvm_vcpu *vcpu,
 	vmsa.handle = to_kvm_sev_info(kvm)->handle;
 	vmsa.address = __sme_pa(svm->sev_es.vmsa);
 	vmsa.len = PAGE_SIZE;
-	ret = sev_issue_cmd(kvm, SEV_CMD_LAUNCH_UPDATE_VMSA, &vmsa, error);
+	ret = sev_do_cmd(SEV_CMD_LAUNCH_UPDATE_VMSA, &vmsa, error);
 	if (ret)
 	  return ret;
 
@@ -1008,7 +1002,7 @@ static int sev_launch_measure(struct kvm *kvm, struct kvm_sev_cmd *argp)
 
 cmd:
 	data.handle = sev->handle;
-	ret = sev_issue_cmd(kvm, SEV_CMD_LAUNCH_MEASURE, &data, &argp->error);
+	ret = sev_do_cmd(SEV_CMD_LAUNCH_MEASURE, &data, &argp->error);
 
 	/*
 	 * If we query the session length, FW responded with expected data.
@@ -1042,7 +1036,7 @@ static int sev_launch_finish(struct kvm *kvm, struct kvm_sev_cmd *argp)
 		return -ENOTTY;
 
 	data.handle = sev->handle;
-	return sev_issue_cmd(kvm, SEV_CMD_LAUNCH_FINISH, &data, &argp->error);
+	return sev_do_cmd(SEV_CMD_LAUNCH_FINISH, &data, &argp->error);
 }
 
 static int sev_guest_status(struct kvm *kvm, struct kvm_sev_cmd *argp)
@@ -1058,7 +1052,7 @@ static int sev_guest_status(struct kvm *kvm, struct kvm_sev_cmd *argp)
 	memset(&data, 0, sizeof(data));
 
 	data.handle = sev->handle;
-	ret = sev_issue_cmd(kvm, SEV_CMD_GUEST_STATUS, &data, &argp->error);
+	ret = sev_do_cmd(SEV_CMD_GUEST_STATUS, &data, &argp->error);
 	if (ret)
 		return ret;
 
@@ -1085,9 +1079,8 @@ static int __sev_issue_dbg_cmd(struct kvm *kvm, unsigned long src,
 	data.src_addr = src;
 	data.len = size;
 
-	return sev_issue_cmd(kvm,
-			     enc ? SEV_CMD_DBG_ENCRYPT : SEV_CMD_DBG_DECRYPT,
-			     &data, error);
+	return sev_do_cmd(enc ? SEV_CMD_DBG_ENCRYPT : SEV_CMD_DBG_DECRYPT,
+			  &data, error);
 }
 
 static int __sev_dbg_decrypt(struct kvm *kvm, unsigned long src_paddr,
@@ -1361,7 +1354,7 @@ static int sev_launch_secret(struct kvm *kvm, struct kvm_sev_cmd *argp)
 	data.hdr_len = params.hdr_len;
 
 	data.handle = sev->handle;
-	ret = sev_issue_cmd(kvm, SEV_CMD_LAUNCH_UPDATE_SECRET, &data, &argp->error);
+	ret = sev_do_cmd(SEV_CMD_LAUNCH_UPDATE_SECRET, &data, &argp->error);
 
 	kfree(hdr);
 
@@ -1414,7 +1407,7 @@ static int sev_get_attestation_report(struct kvm *kvm, struct kvm_sev_cmd *argp)
 	}
 cmd:
 	data.handle = sev->handle;
-	ret = sev_issue_cmd(kvm, SEV_CMD_ATTESTATION_REPORT, &data, &argp->error);
+	ret = sev_do_cmd(SEV_CMD_ATTESTATION_REPORT, &data, &argp->error);
 	/*
 	 * If we query the session length, FW responded with expected data.
 	 */
@@ -1449,7 +1442,7 @@ __sev_send_start_query_session_length(struct kvm *kvm, struct kvm_sev_cmd *argp,
 
 	memset(&data, 0, sizeof(data));
 	data.handle = sev->handle;
-	ret = sev_issue_cmd(kvm, SEV_CMD_SEND_START, &data, &argp->error);
+	ret = sev_do_cmd(SEV_CMD_SEND_START, &data, &argp->error);
 
 	params->session_len = data.session_len;
 	if (copy_to_user(u64_to_user_ptr(argp->data), params,
@@ -1524,7 +1517,7 @@ static int sev_send_start(struct kvm *kvm, struct kvm_sev_cmd *argp)
 	data.session_len = params.session_len;
 	data.handle = sev->handle;
 
-	ret = sev_issue_cmd(kvm, SEV_CMD_SEND_START, &data, &argp->error);
+	ret = sev_do_cmd(SEV_CMD_SEND_START, &data, &argp->error);
 
 	if (!ret && copy_to_user(u64_to_user_ptr(params.session_uaddr),
 			session_data, params.session_len)) {
@@ -1560,7 +1553,7 @@ __sev_send_update_data_query_lengths(struct kvm *kvm, struct kvm_sev_cmd *argp,
 
 	memset(&data, 0, sizeof(data));
 	data.handle = sev->handle;
-	ret = sev_issue_cmd(kvm, SEV_CMD_SEND_UPDATE_DATA, &data, &argp->error);
+	ret = sev_do_cmd(SEV_CMD_SEND_UPDATE_DATA, &data, &argp->error);
 
 	params->hdr_len = data.hdr_len;
 	params->trans_len = data.trans_len;
@@ -1630,7 +1623,7 @@ static int sev_send_update_data(struct kvm *kvm, struct kvm_sev_cmd *argp)
 	data.guest_len = params.guest_len;
 	data.handle = sev->handle;
 
-	ret = sev_issue_cmd(kvm, SEV_CMD_SEND_UPDATE_DATA, &data, &argp->error);
+	ret = sev_do_cmd(SEV_CMD_SEND_UPDATE_DATA, &data, &argp->error);
 
 	if (ret)
 		goto e_free_trans_data;
@@ -1666,7 +1659,7 @@ static int sev_send_finish(struct kvm *kvm, struct kvm_sev_cmd *argp)
 		return -ENOTTY;
 
 	data.handle = sev->handle;
-	return sev_issue_cmd(kvm, SEV_CMD_SEND_FINISH, &data, &argp->error);
+	return sev_do_cmd(SEV_CMD_SEND_FINISH, &data, &argp->error);
 }
 
 static int sev_send_cancel(struct kvm *kvm, struct kvm_sev_cmd *argp)
@@ -1678,7 +1671,7 @@ static int sev_send_cancel(struct kvm *kvm, struct kvm_sev_cmd *argp)
 		return -ENOTTY;
 
 	data.handle = sev->handle;
-	return sev_issue_cmd(kvm, SEV_CMD_SEND_CANCEL, &data, &argp->error);
+	return sev_do_cmd(SEV_CMD_SEND_CANCEL, &data, &argp->error);
 }
 
 static int sev_receive_start(struct kvm *kvm, struct kvm_sev_cmd *argp)
@@ -1724,8 +1717,7 @@ static int sev_receive_start(struct kvm *kvm, struct kvm_sev_cmd *argp)
 	start.session_len = params.session_len;
 
 	/* create memory encryption context */
-	ret = __sev_issue_cmd(argp->sev_fd, SEV_CMD_RECEIVE_START, &start,
-				error);
+	ret = sev_do_cmd(SEV_CMD_RECEIVE_START, &start, error);
 	if (ret)
 		goto e_free_session;
 
@@ -1819,8 +1811,7 @@ static int sev_receive_update_data(struct kvm *kvm, struct kvm_sev_cmd *argp)
 	data.guest_len = params.guest_len;
 	data.handle = sev->handle;
 
-	ret = sev_issue_cmd(kvm, SEV_CMD_RECEIVE_UPDATE_DATA, &data,
-				&argp->error);
+	ret = sev_do_cmd(SEV_CMD_RECEIVE_UPDATE_DATA, &data, &argp->error);
 
 	sev_unpin_memory(kvm, guest_page, n);
 
@@ -1841,7 +1832,7 @@ static int sev_receive_finish(struct kvm *kvm, struct kvm_sev_cmd *argp)
 		return -ENOTTY;
 
 	data.handle = sev->handle;
-	return sev_issue_cmd(kvm, SEV_CMD_RECEIVE_FINISH, &data, &argp->error);
+	return sev_do_cmd(SEV_CMD_RECEIVE_FINISH, &data, &argp->error);
 }
 
 static bool is_cmd_allowed_from_mirror(u32 cmd_id)
@@ -2174,7 +2165,7 @@ static void *snp_context_create(struct kvm *kvm, struct kvm_sev_cmd *argp)
 		return ERR_PTR(-ENOMEM);
 
 	data.address = __psp_pa(context);
-	rc = __sev_issue_cmd(argp->sev_fd, SEV_CMD_SNP_GCTX_CREATE, &data, &argp->error);
+	rc = sev_do_cmd(SEV_CMD_SNP_GCTX_CREATE, &data, &argp->error);
 	if (rc) {
 		pr_warn("Failed to create SEV-SNP context, rc %d fw_error %d",
 			rc, argp->error);
@@ -2192,7 +2183,7 @@ static int snp_bind_asid(struct kvm *kvm, int *error)
 
 	data.gctx_paddr = __psp_pa(sev->snp_context);
 	data.asid = sev_get_asid(kvm);
-	return sev_issue_cmd(kvm, SEV_CMD_SNP_ACTIVATE, &data, error);
+	return sev_do_cmd(SEV_CMD_SNP_ACTIVATE, &data, error);
 }
 
 static int snp_launch_start(struct kvm *kvm, struct kvm_sev_cmd *argp)
@@ -2233,7 +2224,7 @@ static int snp_launch_start(struct kvm *kvm, struct kvm_sev_cmd *argp)
 	start.gctx_paddr = __psp_pa(sev->snp_context);
 	start.policy = params.policy;
 	memcpy(start.gosvw, params.gosvw, sizeof(params.gosvw));
-	rc = __sev_issue_cmd(argp->sev_fd, SEV_CMD_SNP_LAUNCH_START, &start, &argp->error);
+	rc = sev_do_cmd(SEV_CMD_SNP_LAUNCH_START, &start, &argp->error);
 	if (rc) {
 		pr_debug("%s: SEV_CMD_SNP_LAUNCH_START firmware command failed, rc %d\n",
 			 __func__, rc);
@@ -2309,8 +2300,7 @@ static int sev_gmem_post_populate(struct kvm *kvm, gfn_t gfn_start, kvm_pfn_t pf
 		fw_args.page_size = PG_LEVEL_TO_RMP(PG_LEVEL_4K);
 		fw_args.page_type = sev_populate_args->type;
 
-		ret = __sev_issue_cmd(sev_populate_args->sev_fd, SEV_CMD_SNP_LAUNCH_UPDATE,
-				      &fw_args, &sev_populate_args->fw_error);
+		ret = sev_do_cmd(SEV_CMD_SNP_LAUNCH_UPDATE, &fw_args, &sev_populate_args->fw_error);
 		if (ret)
 			goto fw_err;
 	}
@@ -2464,7 +2454,7 @@ static int snp_launch_update_vmsa(struct kvm *kvm, struct kvm_sev_cmd *argp)
 
 		/* Issue the SNP command to encrypt the VMSA */
 		data.address = __sme_pa(svm->sev_es.vmsa);
-		ret = __sev_issue_cmd(argp->sev_fd, SEV_CMD_SNP_LAUNCH_UPDATE,
+		ret = sev_do_cmd(SEV_CMD_SNP_LAUNCH_UPDATE,
 				      &data, &argp->error);
 		if (ret) {
 			snp_page_reclaim(kvm, pfn);
@@ -2541,7 +2531,7 @@ static int snp_launch_finish(struct kvm *kvm, struct kvm_sev_cmd *argp)
 
 	memcpy(data->host_data, params.host_data, KVM_SEV_SNP_FINISH_DATA_SIZE);
 	data->gctx_paddr = __psp_pa(sev->snp_context);
-	ret = sev_issue_cmd(kvm, SEV_CMD_SNP_LAUNCH_FINISH, data, &argp->error);
+	ret = sev_do_cmd(SEV_CMD_SNP_LAUNCH_FINISH, data, &argp->error);
 
 	/*
 	 * Now that there will be no more SNP_LAUNCH_UPDATE ioctls, private pages
@@ -2575,6 +2565,10 @@ int sev_mem_enc_ioctl(struct kvm *kvm, void __user *argp)
 
 	if (copy_from_user(&sev_cmd, argp, sizeof(struct kvm_sev_cmd)))
 		return -EFAULT;
+
+	/* Uses of ccp driver like sev_do_cmd must be access-checked */
+	if (!sev_check_external_user(sev_cmd.sev_fd))
+		return -EBADF;
 
 	mutex_lock(&kvm->lock);
 
@@ -4056,7 +4050,7 @@ static int snp_handle_guest_req(struct vcpu_svm *svm, gpa_t req_gpa, gpa_t resp_
 	 * condition along the way should be reported to userspace. E.g. if
 	 * the PSP is dead and commands are timing out.
 	 */
-	ret = sev_issue_cmd(kvm, SEV_CMD_SNP_GUEST_REQUEST, &data, &fw_err);
+	ret = sev_do_cmd(SEV_CMD_SNP_GUEST_REQUEST, &data, &fw_err);
 	if (ret && !fw_err)
 		goto out_unlock;
 

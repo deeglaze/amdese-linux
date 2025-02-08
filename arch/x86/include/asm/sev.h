@@ -322,6 +322,32 @@ struct svsm_attest_call {
 	u8 rsvd[4];
 };
 
+struct svsm_vtpm_send_command_req {
+	u8 locality;
+	u32 cmd_size;
+	u8 cmd[];
+} __packed;
+
+struct svsm_vtpm_send_command_rsp {
+	u32 rsp_size;
+	u8 rsp[];
+} __packed;
+
+struct svsm_vtpm_cmd {
+	u32 platform_cmd;
+	union {
+		struct svsm_vtpm_send_command_req send_command_req;
+		struct svsm_vtpm_send_command_rsp send_command_rsp;
+	} u;
+};
+#define SVSM_TPM_SEND_COMMAND	8
+
+struct svsm_vtpm_query_result {
+	u32 result;
+	u64 supported_commands;
+	u64 supported_features;
+};
+
 /* PTE descriptor used for the prepare_pte_enc() operations. */
 struct pte_enc_desc {
 	pte_t *kpte;
@@ -364,6 +390,10 @@ struct svsm_call {
 #define SVSM_ATTEST_CALL(x)		((1ULL << 32) | (x))
 #define SVSM_ATTEST_SERVICES		0
 #define SVSM_ATTEST_SINGLE_SERVICE	1
+
+#define SVSM_VTPM_CALL(x)		((2ULL << 32) | (x))
+#define SVSM_VTPM_QUERY			0
+#define SVSM_VTPM_CMD			1
 
 #ifdef CONFIG_AMD_MEM_ENCRYPT
 
@@ -448,6 +478,8 @@ void snp_dmi_setup(void);
 int snp_issue_guest_request(struct snp_guest_req *req, struct snp_req_data *input,
 			    struct snp_guest_request_ioctl *rio);
 int snp_issue_svsm_attest_req(u64 call_id, struct svsm_call *call, struct svsm_attest_call *input);
+int snp_issue_svsm_vtpm_query(struct svsm_vtpm_query_result *output);
+int snp_issue_svsm_vtpm_cmd(struct svsm_vtpm_cmd *cmd);
 void snp_accept_memory(phys_addr_t start, phys_addr_t end);
 u64 snp_get_unsupported_features(u64 status);
 u64 sev_get_status(void);
@@ -489,6 +521,11 @@ static inline int snp_issue_svsm_attest_req(u64 call_id, struct svsm_call *call,
 {
 	return -ENOTTY;
 }
+static inline int snp_issue_svsm_vtpm_query(struct svsm_vtpm_query_result *output)
+{
+	return -ENOTTY;
+}
+static inline int snp_issue_svsm_vtpm_cmd(struct svsm_vtpm_cmd *cmd) { return -ENOTTY; }
 static inline void snp_accept_memory(phys_addr_t start, phys_addr_t end) { }
 static inline u64 snp_get_unsupported_features(u64 status) { return 0; }
 static inline u64 sev_get_status(void) { return 0; }

@@ -2573,6 +2573,101 @@ e_restore_irq:
 }
 EXPORT_SYMBOL_GPL(snp_issue_guest_request);
 
+int snp_issue_svsm_vtpm_query(struct svsm_vtpm_query_result *output)
+{
+	struct svsm_call call = {};
+	unsigned long flags;
+	int ret;
+
+	if (!snp_vmpl)
+		return -EINVAL;
+
+	local_irq_save(flags);
+
+	call.caa = svsm_get_caa();
+
+	call.rax = SVSM_VTPM_CALL(SVSM_VTPM_QUERY);
+	ret = svsm_perform_call_protocol(&call);
+	local_irq_restore(flags);
+	if (ret) {
+		pr_err("Can't query vTPM, ret=%d, rax_out=0x%llx\n", ret, call.rax_out);
+		return ret;
+	}
+
+	output->result = (u32)(call.rax_out & 0xffffffff);
+	output->supported_commands = call.rcx_out;
+	output->supported_features = call.rdx_out;
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(snp_issue_svsm_vtpm_query);
+
+static void svsm_vtpm_cmd_copy_req(struct svsm_vtpm_cmd *dest, struct svsm_vtpm_cmd *src)
+{
+	dest->platform_cmd = src->platform_cmd;
+	switch (src->platform_cmd) {
+	case SVSM_TPM_SEND_COMMAND:
+		memcpy(&dest->u.send_command_req, &src->u.send_command_req,
+		       src->u.send_command_req.cmd_size +
+			offsetof(struct svsm_vtpm_send_command_req, cmd));
+		break;
+	default:
+		pr_err("Unknown SVSM vTPM platform command (request) 0x%x\n", src->platform_cmd);
+	}
+}
+
+static void svsm_vtpm_cmd_copy_rsp(struct svsm_vtpm_cmd *dest, struct svsm_vtpm_cmd *src)
+{
+	switch (src->platform_cmd) {
+	case SVSM_TPM_SEND_COMMAND:
+		memcpy(&dest->u.send_command_rsp,
+		       &src->u.send_command_rsp,
+		       src->u.send_command_rsp.rsp_size +
+			offsetof(struct svsm_vtpm_send_command_rsp, rsp));
+		break;
+	default:
+		pr_err("Unknown SVSM vTPM platform command (response) 0x%x\n", src->platform_cmd);
+	}
+}
+
+int snp_issue_svsm_vtpm_cmd(struct svsm_vtpm_cmd *cmd)
+{
+	struct svsm_call call = {};
+	struct svsm_vtpm_cmd *vc;
+	unsigned long flags;
+	phys_addr_t vc_pa;
+	int ret;
+
+	if (!snp_vmpl)
+		return -EINVAL;
+
+	local_irq_save(flags);
+
+	call.caa = svsm_get_caa();
+
+	vc = (struct svsm_vtpm_cmd *)call.caa->svsm_buffer;
+	vc_pa = svsm_get_caa_pa() + offsetof(struct svsm_ca, svsm_buffer);
+
+	svsm_vtpm_cmd_copy_req(vc, cmd);
+
+	call.rax = SVSM_VTPM_CALL(SVSM_VTPM_CMD);
+	call.rcx = vc_pa;
+	ret = svsm_perform_call_protocol(&call);
+
+	if (ret) {
+		pr_err("Can't send command to vTPM, ret=%d, rax_out=0x%llx\n", ret, call.rax_out);
+		goto e_restore_irq;
+	}
+
+	svsm_vtpm_cmd_copy_rsp(cmd, vc);
+
+e_restore_irq:
+	local_irq_restore(flags);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(snp_issue_svsm_vtpm_cmd);
+
 static struct platform_device sev_guest_device = {
 	.name		= "sev-guest",
 	.id		= -1,

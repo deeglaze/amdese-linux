@@ -561,4 +561,13 @@ static inline int tpm_buf_check_hmac_response(struct tpm_chip *chip,
 }
 #endif	/* CONFIG_TCG_TPM2_HMAC */
 
+
+/* Maximum buffer sizes supported by fTPM and required of TEE shared memory. */
+#define FTPM_MAX_COMMAND_SIZE       4096
+#define FTPM_MAX_RESPONSE_SIZE      4096
+
+/* The TAFs ID implemented in the fTPM trusted application. */
+#define FTPM_OPTEE_TA_SUBMIT_COMMAND  (0)
+#define FTPM_OPTEE_TA_EMULATE_PPI     (1)
+
 #endif

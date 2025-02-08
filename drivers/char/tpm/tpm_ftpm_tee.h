@@ -10,14 +10,6 @@
 #include <linux/tpm.h>
 #include <linux/uuid.h>
 
-/* The TAFs ID implemented in this TA */
-#define FTPM_OPTEE_TA_SUBMIT_COMMAND  (0)
-#define FTPM_OPTEE_TA_EMULATE_PPI     (1)
-
-/* max. buffer size supported by fTPM  */
-#define MAX_COMMAND_SIZE       4096
-#define MAX_RESPONSE_SIZE      4096
-
 /**
  * struct ftpm_tee_private - fTPM's private data
  * @chip:     struct tpm_chip instance registered with tpm framework.
@@ -32,7 +24,7 @@ struct ftpm_tee_private {
 	struct tpm_chip *chip;
 	u32 session;
 	size_t resp_len;
-	u8 resp_buf[MAX_RESPONSE_SIZE];
+	u8 resp_buf[FTPM_MAX_RESPONSE_SIZE];
 	struct tee_context *ctx;
 	struct tee_shm *shm;
 };

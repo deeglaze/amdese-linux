@@ -80,9 +80,9 @@ static int ftpm_tee_tpm_op_send(struct tpm_chip *chip, u8 *buf, size_t len)
 	struct tee_param command_params[4];
 	struct tee_shm *shm = pvt_data->shm;
 
-	if (len > MAX_COMMAND_SIZE) {
+	if (len > FTPM_MAX_COMMAND_SIZE) {
 		dev_err(&chip->dev,
-			"%s: len=%zd exceeds MAX_COMMAND_SIZE supported by fTPM TA\n",
+			"%s: len=%zd exceeds FTPM_MAX_COMMAND_SIZE supported by fTPM TA\n",
 			__func__, len);
 		return -EIO;
 	}
@@ -114,15 +114,15 @@ static int ftpm_tee_tpm_op_send(struct tpm_chip *chip, u8 *buf, size_t len)
 			__func__);
 		return PTR_ERR(temp_buf);
 	}
-	memset(temp_buf, 0, (MAX_COMMAND_SIZE + MAX_RESPONSE_SIZE));
+	memset(temp_buf, 0, (FTPM_MAX_COMMAND_SIZE + FTPM_MAX_RESPONSE_SIZE));
 	memcpy(temp_buf, buf, len);
 
 	command_params[1] = (struct tee_param) {
 		.attr = TEE_IOCTL_PARAM_ATTR_TYPE_MEMREF_INOUT,
 		.u.memref = {
 			.shm = shm,
-			.size = MAX_RESPONSE_SIZE,
-			.shm_offs = MAX_COMMAND_SIZE,
+			.size = FTPM_MAX_RESPONSE_SIZE,
+			.shm_offs = FTPM_MAX_COMMAND_SIZE,
 		},
 	};
 
@@ -150,9 +150,9 @@ static int ftpm_tee_tpm_op_send(struct tpm_chip *chip, u8 *buf, size_t len)
 			__func__);
 		return -EIO;
 	}
-	if (resp_len > MAX_RESPONSE_SIZE) {
+	if (resp_len > FTPM_MAX_RESPONSE_SIZE) {
 		dev_err(&chip->dev,
-			"%s: resp_len=%zd exceeds MAX_RESPONSE_SIZE\n",
+			"%s: resp_len=%zd exceeds FTPM_MAX_RESPONSE_SIZE\n",
 			__func__, resp_len);
 		return -EIO;
 	}
@@ -199,8 +199,9 @@ static int ftpm_tee_match(struct tee_ioctl_version_data *ver, const void *data)
 	/*
 	 * Currently this driver only support GP Complaint OPTEE based fTPM TA
 	 */
-	if ((ver->impl_id == TEE_IMPL_ID_OPTEE) &&
-		(ver->gen_caps & TEE_GEN_CAP_GP))
+	if (((ver->impl_id == TEE_IMPL_ID_OPTEE) &&
+		(ver->gen_caps & TEE_GEN_CAP_GP)) ||
+	    (ver->impl_id == TEE_IMPL_ID_SVSMTEE))
 		return 1;
 	else
 		return 0;
@@ -254,8 +255,8 @@ static int ftpm_tee_probe(struct device *dev)
 
 	/* Allocate dynamic shared memory with fTPM TA */
 	pvt_data->shm = tee_shm_alloc_kernel_buf(pvt_data->ctx,
-						 MAX_COMMAND_SIZE +
-						 MAX_RESPONSE_SIZE);
+						 FTPM_MAX_COMMAND_SIZE +
+						 FTPM_MAX_RESPONSE_SIZE);
 	if (IS_ERR(pvt_data->shm)) {
 		dev_err(dev, "%s: tee_shm_alloc_kernel_buf failed\n", __func__);
 		rc = -ENOMEM;
@@ -355,6 +356,7 @@ static void ftpm_plat_tee_shutdown(struct platform_device *pdev)
 
 static const struct of_device_id of_ftpm_tee_ids[] = {
 	{ .compatible = "microsoft,ftpm" },
+	{ .compatible = "svsm,ftpm" },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, of_ftpm_tee_ids);

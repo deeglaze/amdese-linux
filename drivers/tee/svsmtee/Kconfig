@@ -1,0 +1,8 @@
+# SPDX-License-Identifier: GPL-2.0-only
+# Secure VM Service Module Trusted Execution Environment Configuration
+config SVSMTEE
+	tristate "SVSM-TEE"
+	default y
+	depends on AMD_MEM_ENCRYPT
+	help
+	  This implements the SVSM Trusted Execution Environment (TEE) driver.

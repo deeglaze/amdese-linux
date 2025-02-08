@@ -221,7 +221,7 @@ config TCG_VTPM_PROXY
 
 config TCG_FTPM_TEE
 	tristate "TEE based fTPM Interface"
-	depends on TEE && OPTEE
+	depends on TEE && (OPTEE || SVSMTEE)
 	help
 	  This driver proxies for firmware TPM running in TEE.
 

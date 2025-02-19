@@ -2557,6 +2557,11 @@ static struct platform_device sev_guest_device = {
 	.id		= -1,
 };
 
+static struct platform_device tpm_svsm_device = {
+	.name           = "tpm-svsm",
+	.id             = -1,
+};
+
 static int __init snp_init_platform_device(void)
 {
 	struct sev_guest_platform_data data;
@@ -2574,6 +2579,9 @@ static int __init snp_init_platform_device(void)
 		return -ENODEV;
 
 	if (platform_device_register(&sev_guest_device))
+		return -ENODEV;
+
+	if (platform_device_register(&tpm_svsm_device))
 		return -ENODEV;
 
 	pr_info("SNP guest platform device initialized.\n");

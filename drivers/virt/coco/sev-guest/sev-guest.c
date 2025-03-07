@@ -799,7 +799,7 @@ static int sev_svsm_report_new(struct tsm_report *report, void *data)
 	struct tsm_desc *desc = &report->desc;
 	struct svsm_attest_call ac = {};
 	unsigned int retry_count;
-	void *rep, *man, *certs;
+	void *rep, *man, *certs, *selector;
 	struct svsm_call call;
 	unsigned int size;
 	bool try_again;
@@ -827,7 +827,10 @@ static int sev_svsm_report_new(struct tsm_report *report, void *data)
 		export_guid(ac.service_guid, &desc->service_guid);
 		ac.service_manifest_ver = desc->service_manifest_version;
 
-		call_id = SVSM_ATTEST_CALL(SVSM_ATTEST_SINGLE_SERVICE);
+		if (desc->manifest_selector_len)
+			call_id = SVSM_ATTEST_CALL(SVSM_ATTEST_SINGLE_SERVICE_EX);
+		else
+			call_id = SVSM_ATTEST_CALL(SVSM_ATTEST_SINGLE_SERVICE);
 	}
 
 	retry_count = 0;
@@ -835,7 +838,7 @@ static int sev_svsm_report_new(struct tsm_report *report, void *data)
 retry:
 	memset(&call, 0, sizeof(call));
 
-	size = rep_len + man_len + certs_len;
+	size = rep_len + man_len + certs_len + PAGE_ALIGN(desc->manifest_selector_len);
 	buffer = alloc_pages_exact(size, __GFP_ZERO);
 	if (!buffer)
 		return -ENOMEM;
@@ -854,6 +857,10 @@ retry:
 
 	ac.nonce.pa = __pa(desc->inblob);
 	ac.nonce.len = desc->inblob_len;
+
+	selector = certs + certs_len;
+	ac.selector_buf.pa = __pa(selector);
+	ac.selector_buf.len = desc->manifest_selector_len;
 
 	ret = snp_issue_svsm_attest_req(call_id, &call, &ac);
 	if (ret) {

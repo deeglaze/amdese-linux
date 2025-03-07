@@ -23,6 +23,8 @@
  * @service_provider: optional name of where to obtain the tsm report blob
  * @service_guid: optional service-provider service guid to attest
  * @service_manifest_version: optional service-provider service manifest version requested
+ * @manifest_selector: optional service-provider service manifest selector requested
+ * @manifest_selector_len: length of manifest_selector buffer
  */
 struct tsm_desc {
 	unsigned int privlevel;
@@ -31,6 +33,8 @@ struct tsm_desc {
 	char *service_provider;
 	guid_t service_guid;
 	unsigned int service_manifest_version;
+	u8 *manifest_selector;
+	size_t manifest_selector_len;
 };
 
 /**
@@ -62,7 +66,8 @@ struct tsm_report {
  * @TSM_REPORT_SERVICE_PROVIDER: index of the service provider identifier attribute
  * @TSM_REPORT_SERVICE_GUID: index of the service GUID attribute
  * @TSM_REPORT_SERVICE_MANIFEST_VER: index of the service manifest version attribute
- */
+ * @TSM_REPORT_MANIFEST_SELECTOR: index of the manifest selector attribute
+*/
 enum tsm_attr_index {
 	TSM_REPORT_GENERATION,
 	TSM_REPORT_PROVIDER,
@@ -71,6 +76,7 @@ enum tsm_attr_index {
 	TSM_REPORT_SERVICE_PROVIDER,
 	TSM_REPORT_SERVICE_GUID,
 	TSM_REPORT_SERVICE_MANIFEST_VER,
+	TSM_REPORT_MANIFEST_SELECTOR,
 };
 
 /**

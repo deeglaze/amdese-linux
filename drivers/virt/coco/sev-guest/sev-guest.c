@@ -435,6 +435,17 @@ retry:
 		default:
 			pr_err_ratelimited("SVSM attestation request failed (%d / 0x%llx)\n",
 					   ret, call.rax_out);
+			if (call.rax_out >= SVSM_ERR_PROTOCOL_BASE) {
+				u32 *service_error = kmalloc(sizeof(u32), GFP_KERNEL);
+
+				if (!service_error)
+					return -ENOMEM;
+
+				*service_error = (u32)call.rax_out - SVSM_ERR_PROTOCOL_BASE;
+				report->service_error = service_error;
+				return -EIO;
+			}
+
 			return -EINVAL;
 		}
 	}
@@ -589,6 +600,7 @@ static bool sev_report_attr_visible(int n)
 	case TSM_REPORT_SERVICE_PROVIDER:
 	case TSM_REPORT_SERVICE_GUID:
 	case TSM_REPORT_SERVICE_MANIFEST_VER:
+	case TSM_REPORT_SERVICE_ERROR:
 		return snp_vmpl;
 	}
 

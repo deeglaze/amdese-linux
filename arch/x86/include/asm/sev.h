@@ -294,8 +294,8 @@ struct svsm_ca {
 #define SVSM_ERR_INVALID_PARAMETER		0x80000005
 #define SVSM_ERR_INVALID_REQUEST		0x80000006
 #define SVSM_ERR_BUSY				0x80000007
-#define SVSM_PVALIDATE_FAIL_SIZEMISMATCH	0x80001006
 #define SVSM_ERR_PROTOCOL_BASE			0x80001000
+#define SVSM_PVALIDATE_FAIL_SIZEMISMATCH	0x80001006
 
 /*
  * The SVSM PVALIDATE related structures
@@ -340,6 +340,9 @@ struct svsm_attest_call {
 	u8 service_guid[16];
 	u32 service_manifest_ver;
 	u8 rsvd[4];
+
+	/* For attesting a single service with selected attributes */
+	struct svsm_loc_entry selector_buf;
 };
 
 /* PTE descriptor used for the prepare_pte_enc() operations. */
@@ -386,10 +389,11 @@ struct svsm_call {
 #define SVSM_CORE_QUERY_MIN(x)		((u32)(GENMASK_ULL(31, 0) & (x)))
 #define SVSM_CORE_QUERY_MAX(x)		((u32)((x) >> 32))
 
-#define SVSM_ATTEST_PROTOCOL		1
-#define SVSM_ATTEST_CALL(x)			SVSM_PROTOCOL_AND(SVSM_ATTEST_PROTOCOL, x)
-#define SVSM_ATTEST_SERVICES		0
-#define SVSM_ATTEST_SINGLE_SERVICE	1
+#define SVSM_ATTEST_PROTOCOL			1
+#define SVSM_ATTEST_CALL(x)				SVSM_PROTOCOL_AND(SVSM_ATTEST_PROTOCOL, x)
+#define SVSM_ATTEST_SERVICES			0
+#define SVSM_ATTEST_SINGLE_SERVICE		1
+#define SVSM_ATTEST_SINGLE_SERVICE_EX	2
 
 #ifdef CONFIG_AMD_MEM_ENCRYPT
 

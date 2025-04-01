@@ -157,3 +157,18 @@ Description:
 
 		See 'service_provider' for information on the format of the
 		service error.
+
+What:			/sys/kernel/config/tsm/report/$name/manifest_selector
+Date:			April, 2025
+KernelVersion:	v6.15
+Contact:		linux-coco@lists.linux.dev
+Description:
+		(WO) Attribute is visible if a TSM implementation provider
+		supports the concept of attestation reports from a service
+		provider for TVMs, like SEV-SNP running under an SVSM.
+		This is an for services that have high cardinality attestation
+		results that are otherwise too expensive to enumerate entirely.
+
+		The format of the manifest_selector is dependent on the chosen
+		service_guid and the manifest_version. See associated service
+		documentation for details.

@@ -296,9 +296,11 @@ static ssize_t tsm_report_read(struct tsm_report *report, void *buf,
 	kvfree(report->outblob);
 	kvfree(report->auxblob);
 	kvfree(report->manifestblob);
+	kfree(report->service_error);
 	report->outblob = NULL;
 	report->auxblob = NULL;
 	report->manifestblob = NULL;
+	report->service_error = NULL;
 	rc = ops->report_new(report, provider.data);
 	if (rc < 0)
 		return rc;
@@ -334,6 +336,29 @@ static ssize_t tsm_report_manifestblob_read(struct config_item *cfg, void *buf,
 }
 CONFIGFS_BIN_ATTR_RO(tsm_report_, manifestblob, NULL, TSM_OUTBLOB_MAX);
 
+static ssize_t default_service_error_show(char *buf, void *service_error)
+{
+	if (service_error)
+		return sysfs_emit(buf, "unspecified error\n");
+
+	/* No error implies empty error file. */
+	return 0;
+}
+
+static ssize_t tsm_report_service_error_show(struct config_item *cfg,
+					     char *buf)
+{
+	struct tsm_report *report = to_tsm_report(cfg);
+	void *service_error = report->service_error;
+	ssize_t (*show)(char *, void*) = provider.ops->service_error_show;
+
+	if (!show || !service_error)
+		show = default_service_error_show;
+
+	return show(buf, service_error);
+}
+CONFIGFS_ATTR_RO(tsm_report_, service_error);
+
 static struct configfs_attribute *tsm_report_attrs[] = {
 	[TSM_REPORT_GENERATION] = &tsm_report_attr_generation,
 	[TSM_REPORT_PROVIDER] = &tsm_report_attr_provider,
@@ -342,6 +367,7 @@ static struct configfs_attribute *tsm_report_attrs[] = {
 	[TSM_REPORT_SERVICE_PROVIDER] = &tsm_report_attr_service_provider,
 	[TSM_REPORT_SERVICE_GUID] = &tsm_report_attr_service_guid,
 	[TSM_REPORT_SERVICE_MANIFEST_VER] = &tsm_report_attr_service_manifest_version,
+	[TSM_REPORT_SERVICE_ERROR] = &tsm_report_attr_service_error,
 	NULL,
 };
 
@@ -362,6 +388,7 @@ static void tsm_report_item_release(struct config_item *cfg)
 	kvfree(report->auxblob);
 	kvfree(report->outblob);
 	kfree(report->desc.service_provider);
+	kfree(report->service_error);
 	kfree(state);
 }
 

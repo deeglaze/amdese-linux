@@ -143,3 +143,17 @@ Description:
 
 		See 'service_provider' for information on the format of the
 		service manifest version.
+
+What:		/sys/kernel/config/tsm/report/$name/service_error
+Date:		April, 2025
+KernelVersion:	v6.16
+Contact:	linux-coco@lists.linux.dev
+Description:
+		(RO)  Attribute is visible if a TSM implementation provider
+		supports the concept of attestation reports from a service
+		provider for TVMs, like SEV-SNP running under an SVSM.
+		If a service-specific error occurs, then this field will
+		be populated.
+
+		See 'service_provider' for information on the format of the
+		service error.

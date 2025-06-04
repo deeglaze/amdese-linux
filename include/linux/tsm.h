@@ -42,6 +42,9 @@ struct tsm_desc {
  * @auxblob: (optional) auxiliary data to the report (e.g. certificate data)
  * @manifestblob_len: sizeof(@manifestblob)
  * @manifestblob: (optional) manifest data associated with the report
+ * @service_error: (optional) a service-specific error report encountered when
+ *   using service_provider. Type and interpretation are up to the provider
+ *   operation service_error_show.
  */
 struct tsm_report {
 	struct tsm_desc desc;
@@ -51,6 +54,7 @@ struct tsm_report {
 	u8 *auxblob;
 	size_t manifestblob_len;
 	u8 *manifestblob;
+	void *service_error;
 };
 
 /**
@@ -62,6 +66,8 @@ struct tsm_report {
  * @TSM_REPORT_SERVICE_PROVIDER: index of the service provider identifier attribute
  * @TSM_REPORT_SERVICE_GUID: index of the service GUID attribute
  * @TSM_REPORT_SERVICE_MANIFEST_VER: index of the service manifest version attribute
+ * @TSM_REPORT_SERVICE_ERROR: a service-specific error report encountered when using
+ *   service_provider.
  */
 enum tsm_attr_index {
 	TSM_REPORT_GENERATION,
@@ -71,6 +77,7 @@ enum tsm_attr_index {
 	TSM_REPORT_SERVICE_PROVIDER,
 	TSM_REPORT_SERVICE_GUID,
 	TSM_REPORT_SERVICE_MANIFEST_VER,
+	TSM_REPORT_SERVICE_ERROR,
 };
 
 /**
@@ -92,9 +99,16 @@ enum tsm_bin_attr_index {
  * @name: tsm id reflected in /sys/kernel/config/tsm/report/$report/provider
  * @privlevel_floor: convey base privlevel for nested scenarios
  * @report_new: Populate @report with the report blob and auxblob
- * (optional), return 0 on successful population, or -errno otherwise
+ * (optional), return 0 on successful population, or -errno otherwise.
+ *   Service-specific errors should return -EIO and populate the service_error
+ *   object to report with service_error_show. A NULL service_error is treated
+ *   as success.
  * @report_attr_visible: show or hide a report attribute entry
  * @report_bin_attr_visible: show or hide a report binary attribute entry
+ * @service_error_show: Populate @buf with human readable description of
+ *   an error encountered for service-specific report_new behavior. The
+ *   @service_error is expected to be created by report_new and freeable
+ *   with kfree. This is only called when @service_error is non-NULL.
  *
  * Implementation specific ops, only one is expected to be registered at
  * a time i.e. only one of "sev-guest", "tdx-guest", etc.
@@ -105,6 +119,7 @@ struct tsm_ops {
 	int (*report_new)(struct tsm_report *report, void *data);
 	bool (*report_attr_visible)(int n);
 	bool (*report_bin_attr_visible)(int n);
+	ssize_t (*service_error_show)(char *buf, void *service_error);
 };
 
 int tsm_register(const struct tsm_ops *ops, void *priv);

@@ -2506,6 +2506,41 @@ e_restore_irq:
 EXPORT_SYMBOL_GPL(snp_issue_guest_request);
 
 /**
+ * snp_svsm_query_protocol() - Returns whether a protocol at a given version is supported.
+ * @protocol: The SVSM protocol number
+ * @version: The specifice version queried
+ * @min_supported: If not-NULL, set to the minimum supported version for the given protocol.
+ * @max_supported: If not-NULL, set to the maximum supported version for the given protocol.
+ *
+ * This function executes an SVSM_CORE_CALL for SVSM_CORE_QUERY_PROTOCOL.
+ */
+bool snp_svsm_query_protocol(u32 protocol, u32 version, u32 *min_supported, u32 *max_supported)
+{
+	struct svsm_call call = {};
+
+	if (!snp_vmpl)
+		return false;
+
+	call.caa = svsm_get_caa();
+	call.rax = SVSM_CORE_CALL(SVSM_CORE_QUERY_PROTOCOL);
+	call.rcx = SVSM_PROTOCOL_AND(protocol, version);
+
+	if (svsm_perform_call_protocol(&call))
+		return false;
+
+	if (!call.rcx_out)
+		return false;
+
+	if (min_supported)
+		*min_supported = SVSM_CORE_QUERY_MIN(call.rcx_out);
+
+	if (max_supported)
+		*max_supported = SVSM_CORE_QUERY_MAX(call.rcx_out);
+
+	return true;
+}
+
+/**
  * snp_svsm_vtpm_probe() - Probe if SVSM provides a vTPM device
  *
  * Check that there is SVSM and that it supports at least TPM_SEND_COMMAND

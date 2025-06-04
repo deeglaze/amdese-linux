@@ -302,17 +302,24 @@ struct svsm_call {
 	u64 r9_out;
 };
 
-#define SVSM_CORE_CALL(x)		((0ULL << 32) | (x))
+#define SVSM_PROTOCOL_AND(p, x)		(((u64)(p) << 32) | (x))
+#define SVSM_CORE_PROTOCOL		0
+#define SVSM_CORE_CALL(x)		SVSM_PROTOCOL_AND(SVSM_CORE_PROTOCOL, x)
 #define SVSM_CORE_REMAP_CA		0
 #define SVSM_CORE_PVALIDATE		1
 #define SVSM_CORE_CREATE_VCPU		2
 #define SVSM_CORE_DELETE_VCPU		3
+#define SVSM_CORE_QUERY_PROTOCOL	6
+#define SVSM_CORE_QUERY_MIN(x)		((u32)(GENMASK_ULL(31, 0) & (x)))
+#define SVSM_CORE_QUERY_MAX(x)		((u32)((x) >> 32))
 
-#define SVSM_ATTEST_CALL(x)		((1ULL << 32) | (x))
+#define SVSM_ATTEST_PROTOCOL		1
+#define SVSM_ATTEST_CALL(x)		SVSM_PROTOCOL_AND(SVSM_ATTEST_PROTOCOL, x)
 #define SVSM_ATTEST_SERVICES		0
 #define SVSM_ATTEST_SINGLE_SERVICE	1
 
-#define SVSM_VTPM_CALL(x)		((2ULL << 32) | (x))
+#define SVSM_VTPM_PROTOCOL		2
+#define SVSM_VTPM_CALL(x)		SVSM_PROTOCOL_AND(SVSM_VTPM_PROTOCOL, x)
 #define SVSM_VTPM_QUERY			0
 #define SVSM_VTPM_CMD			1
 
@@ -404,6 +411,7 @@ u64 sev_get_status(void);
 void sev_show_status(void);
 void snp_update_svsm_ca(void);
 int snp_svsm_vtpm_send_command(u8 *buffer);
+bool snp_svsm_query_protocol(u32 protocol, u32 version, u32 *min_supported, u32 *max_supported);
 
 #else	/* !CONFIG_AMD_MEM_ENCRYPT */
 
@@ -441,6 +449,11 @@ static inline u64 sev_get_status(void) { return 0; }
 static inline void sev_show_status(void) { }
 static inline void snp_update_svsm_ca(void) { }
 static inline int snp_svsm_vtpm_send_command(u8 *buffer) { return -ENODEV; }
+static inline
+bool snp_svsm_query_protocol(u32 protocol, u32 version, u32 *min_supported, u32 *max_supported)
+{
+	return false;
+}
 
 #endif	/* CONFIG_AMD_MEM_ENCRYPT */
 

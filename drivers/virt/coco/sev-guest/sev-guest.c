@@ -827,7 +827,10 @@ static int sev_svsm_report_new(struct tsm_report *report, void *data)
 		export_guid(ac.service_guid, &desc->service_guid);
 		ac.service_manifest_ver = desc->service_manifest_version;
 
-		call_id = SVSM_ATTEST_CALL(SVSM_ATTEST_SINGLE_SERVICE);
+		if (desc->manifest_selector_len)
+			call_id = SVSM_ATTEST_CALL(SVSM_ATTEST_SINGLE_SERVICE_EX);
+		else
+			call_id = SVSM_ATTEST_CALL(SVSM_ATTEST_SINGLE_SERVICE);
 	}
 
 	retry_count = 0;
@@ -854,6 +857,9 @@ retry:
 
 	ac.nonce.pa = __pa(desc->inblob);
 	ac.nonce.len = desc->inblob_len;
+
+	ac.selector_buf.pa = __pa(desc->manifest_selector);
+	ac.selector_buf.len = desc->manifest_selector_len;
 
 	ret = snp_issue_svsm_attest_req(call_id, &call, &ac);
 	if (ret) {
@@ -1074,6 +1080,8 @@ static bool sev_report_bin_attr_visible(int n)
 		return true;
 	case TSM_REPORT_MANIFESTBLOB:
 		return snp_vmpl;
+	case TSM_REPORT_MANIFEST_SELECTOR:
+		return snp_svsm_query_protocol(SVSM_ATTEST_PROTOCOL, 2, NULL, NULL);
 	}
 
 	return false;

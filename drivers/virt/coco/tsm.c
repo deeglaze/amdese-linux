@@ -187,6 +187,30 @@ static ssize_t tsm_report_service_manifest_version_store(struct config_item *cfg
 }
 CONFIGFS_ATTR_WO(tsm_report_, service_manifest_version);
 
+static ssize_t tsm_report_manifest_selector_write(struct config_item *cfg,
+						  const void *buf, size_t len)
+{
+	struct tsm_report *report = to_tsm_report(cfg);
+	u8 *ss;
+	int rc;
+
+	guard(rwsem_write)(&tsm_rwsem);
+	rc = try_advance_write_generation(report);
+	if (rc)
+		return rc;
+
+	ss = kzalloc(len, GFP_KERNEL);
+	if (!ss)
+		return -ENOMEM;
+
+	memcpy(ss, buf, len);
+	report->desc.manifest_selector_len = len;
+	report->desc.manifest_selector = ss;
+
+	return len;
+}
+CONFIGFS_BIN_ATTR_WO(tsm_report_, manifest_selector, NULL, TSM_MANIFEST_SELECTOR_MAX);
+
 static ssize_t tsm_report_inblob_write(struct config_item *cfg,
 				       const void *buf, size_t count)
 {
@@ -376,6 +400,7 @@ static struct configfs_bin_attribute *tsm_report_bin_attrs[] = {
 	[TSM_REPORT_OUTBLOB] = &tsm_report_attr_outblob,
 	[TSM_REPORT_AUXBLOB] = &tsm_report_attr_auxblob,
 	[TSM_REPORT_MANIFESTBLOB] = &tsm_report_attr_manifestblob,
+	[TSM_REPORT_MANIFEST_SELECTOR] = &tsm_report_attr_manifest_selector,
 	NULL,
 };
 
@@ -388,6 +413,7 @@ static void tsm_report_item_release(struct config_item *cfg)
 	kvfree(report->auxblob);
 	kvfree(report->outblob);
 	kfree(report->desc.service_provider);
+	kvfree(report->desc.manifest_selector);
 	kfree(report->service_error);
 	kfree(state);
 }

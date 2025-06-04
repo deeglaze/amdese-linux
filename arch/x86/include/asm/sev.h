@@ -284,6 +284,9 @@ struct svsm_attest_call {
 	u8 service_guid[16];
 	u32 service_manifest_ver;
 	u8 rsvd[4];
+
+	/* For attesting a single service with selected attributes */
+	struct svsm_loc_entry selector_buf;
 };
 
 /*
@@ -318,6 +321,7 @@ struct svsm_call {
 #define SVSM_ATTEST_CALL(x)		SVSM_PROTOCOL_AND(SVSM_ATTEST_PROTOCOL, x)
 #define SVSM_ATTEST_SERVICES		0
 #define SVSM_ATTEST_SINGLE_SERVICE	1
+#define SVSM_ATTEST_SINGLE_SERVICE_EX	2
 
 #define SVSM_VTPM_PROTOCOL		2
 #define SVSM_VTPM_CALL(x)		SVSM_PROTOCOL_AND(SVSM_VTPM_PROTOCOL, x)

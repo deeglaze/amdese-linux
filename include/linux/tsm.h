@@ -8,6 +8,7 @@
 
 #define TSM_INBLOB_MAX 64
 #define TSM_OUTBLOB_MAX SZ_32K
+#define TSM_MANIFEST_SELECTOR_MAX SZ_16K
 
 /*
  * Privilege level is a nested permission concept to allow confidential
@@ -23,6 +24,8 @@
  * @service_provider: optional name of where to obtain the tsm report blob
  * @service_guid: optional service-provider service guid to attest
  * @service_manifest_version: optional service-provider service manifest version requested
+ * @manifest_selector: optional service-provider service manifest selector requested
+ * @manifest_selector_len: length of manifest_selector buffer
  */
 struct tsm_desc {
 	unsigned int privlevel;
@@ -31,6 +34,8 @@ struct tsm_desc {
 	char *service_provider;
 	guid_t service_guid;
 	unsigned int service_manifest_version;
+	u8 *manifest_selector;
+	size_t manifest_selector_len;
 };
 
 /**
@@ -86,12 +91,14 @@ enum tsm_attr_index {
  * @TSM_REPORT_OUTBLOB: index of the binary report output attribute
  * @TSM_REPORT_AUXBLOB: index of the binary auxiliary data attribute
  * @TSM_REPORT_MANIFESTBLOB: index of the binary manifest data attribute
+ * @TSM_REPORT_MANIFEST_SELECTOR: index of the manifest selector attribute
  */
 enum tsm_bin_attr_index {
 	TSM_REPORT_INBLOB,
 	TSM_REPORT_OUTBLOB,
 	TSM_REPORT_AUXBLOB,
 	TSM_REPORT_MANIFESTBLOB,
+	TSM_REPORT_MANIFEST_SELECTOR,
 };
 
 /**
